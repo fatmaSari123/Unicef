@@ -1,1 +1,553 @@
+---
+title: " "
+format: html
+execute:
+  echo: false
+  warning: false
+  message: false
+---
 
+```{python}
+import pandas as pd
+import matplotlib.pyplot as plt
+from io import BytesIO
+import base64
+
+# CSV laden
+csv_path = "/content/drive/MyDrive/Colab Notebooks/Unicef_Indicator_Meta_Merged.csv"
+df = pd.read_csv(csv_path)
+
+# Aggregieren
+gender_counts = df.groupby("sex")["obs_value"].sum()
+colors = ["#d9b4a9", "#8d6c64"]
+
+# Kreisdiagramm
+fig, ax = plt.subplots(figsize=(7, 7), facecolor="#fdf9f7")
+wedges, texts, autotexts = ax.pie(
+    gender_counts,
+    labels=gender_counts.index,
+    autopct=lambda p: f"{p:.1f}%\n({int(p * sum(gender_counts) / 100):,})".replace(",", "."),
+    colors=colors,
+    startangle=90,
+    textprops={"color": "white", "fontsize": 14, "weight": "bold"}
+)
+
+# Labels
+for text in texts:
+    text.set_fontsize(14)
+    text.set_color("#8d6c64")
+    text.set_fontweight("bold")
+
+# Nur DIESER Titel unter dem Kreisdiagramm
+ax.text(0, -1.15, "Gender Distribution of Youth Mortality", 
+        ha='center', fontsize=16, color="#8d6c64", weight='regular')
+
+fig.patch.set_facecolor("none")
+plt.tight_layout()
+
+# Diagramm als Base64
+buffer = BytesIO()
+fig.savefig(buffer, format="png", bbox_inches="tight", transparent=True)
+buffer.seek(0)
+img_base64 = base64.b64encode(buffer.read()).decode("utf-8")
+plt.close(fig)
+```
+
+```{python}
+from IPython.display import display, HTML
+
+display(HTML(f"""
+<div style="text-align: center; font-family: sans-serif; background-color: #fdf9f7; padding: 30px;">
+  <h2 style="color: #8d6c64; font-weight: 600; font-size: 28px; margin-bottom: 5px;">
+    Youth Mortality: A Global Crisis? How Many Have Died in the Last 32 Years?
+  </h2>
+  <h3 style="color: #8d6c64; font-weight: 400; font-size: 22px; margin-top: 0;">
+    The Global Picture
+  </h3>
+
+  <img src="data:image/png;base64,{img_base64}" alt="Gender Distribution Pie Chart" style="width: 380px; margin-top: 20px;">
+
+  <p style="color: #8d6c64; font-size: 18px; margin-top: 30px;">
+    Nearly <strong>50 million</strong> young people <strong>between the ages 15 and 24</strong> have died worldwide over the past <strong>32 years</strong>.<br>
+    <strong>60%</strong> of these deaths were <strong>male</strong>, while <strong>40%</strong> were <strong>female</strong>.
+  </p>
+
+  <p style="color: #8d6c64; font-size: 18px; font-style: italic; font-weight: 600;">
+    Let's delve deeper into these numbers!
+  </p>
+</div>
+"""))
+```
+
+```{python}
+import plotly.graph_objects as go
+import plotly.io as pio
+
+pio.renderers.default = 'notebook_connected'
+
+# Einheitliche Hintergrundfarbe
+background = "#fdf9f7"
+
+# Länder
+countries = [
+    "India", "China", "Nigeria", "Ethiopia", "Pakistan", "Indonesia",
+    "Bangladesh", "United States", "Russia", "South Africa",
+    "Sudan", "Uganda", "Mexico", "Angola", "Philippines"
+]
+
+# Manuell zugewiesene Farbwerte (0–1)
+z = [
+    1.0,   # Indien
+    0.95,  # China
+    0.8,   # Nigeria
+    0.75,  # Ethiopia
+    0.7,   # Pakistan
+    0.65,  # Indonesia
+    0.6,   # Bangladesh
+    0.55,  # USA
+    0.5,   # Russia
+    0.45,  # South Africa
+    0.4,   # Sudan
+    0.35,  # Uganda
+    0.3,   # Mexico
+    0.25,  # Angola
+    0.05   # Philippines
+]
+
+# Echte Todeszahlen (für Hover)
+values = [
+    11669299, 4009047, 2346690, 1720761, 1689171, 1596339,
+    1256822, 1095822, 1030063, 912404,
+    700600, 699347, 667463, 596003, 581688
+]
+
+ranks = list(range(1, 16))
+
+# Farbschema
+custom_brown = [
+    [0.0, "#f9f6f4"],
+    [0.25, "#f2e9e4"],
+    [0.5, "#ddb8a0"],
+    [0.7, "#c58a6a"],
+    [0.85, "#874c3c"],
+    [0.95, "#5e2f23"],
+    [1.0, "#3e1d17"]
+]
+
+# Korrekte Tick-Positionen für 2–10 Mio
+tickvals = [0.134, 0.298, 0.463, 0.628, 0.793]
+ticktext = ["2 Mio", "4 Mio", "6 Mio", "8 Mio", "10 Mio"]
+
+# Plot erstellen
+fig = go.Figure()
+
+fig.add_trace(
+    go.Choropleth(
+        locations=countries,
+        locationmode="country names",
+        z=z,
+        zmin=0,
+        zmax=1,
+        colorscale=custom_brown,
+        colorbar=dict(
+            title="Total Deaths",
+            len=0.8,
+            tickvals=tickvals,
+            ticktext=ticktext,
+            tickfont=dict(color="#8d6c64", size=14),
+            title_font=dict(color="#8d6c64", size=16),
+            title_side="top"
+        ),
+        marker_line_color="black",
+        marker_line_width=0.5,
+        text=[
+            f"<b>Rank:</b> {rank}<br><b>Country:</b> {country}<br><b>Total Deaths:</b> {val:,}"
+            for country, val, rank in zip(countries, values, ranks)
+        ],
+        hoverinfo="text"
+    )
+)
+
+# Layout und Styling
+fig.update_layout(
+    title="Top 15 Countries with the Highest Youth Mortality (1990–2022)",
+    title_font=dict(size=22, family="Arial", color="#8d6c64", weight="bold"),
+    font=dict(family="Arial", size=14, color="#8d6c64"),
+    geo=dict(
+        projection=dict(type="orthographic", rotation=dict(lon=60, lat=12)),
+        showland=True,
+        landcolor="whitesmoke",
+        showocean=True,
+        oceancolor="rgba(173, 216, 230, 0.2)",
+        showlakes=True,
+        lakecolor="rgba(173, 216, 230, 0.2)",
+        showcountries=True,
+        countrycolor="white",
+        showframe=False,
+        showcoastlines=False,
+        bgcolor=background
+    ),
+    paper_bgcolor=background,
+    plot_bgcolor=background,
+    margin={"r": 0, "t": 50, "l": 0, "b": 0}
+)
+
+fig.show()
+```
+
+
+<div style="background-color: #fdf9f7; color: #8d6c64; font-family: sans-serif; font-size: 16px; padding: 20px; max-width: 1250px; margin: 0 auto; text-align: left;">
+  <p>
+    For the sake of simplicity, this map highlights the <strong>15 countries</strong> with the 
+    <strong>highest absolute number of youth mortality</strong> (ages 15–24) from 1990 to 2022.
+  </p>
+  <p>
+    The darkest colours on the map indicate the countries with the most deaths. Unfortunately, 
+    <strong>not all countries show a downward trend</strong>. Some are still struggling with problems that contribute 
+    to persistently high mortality rates.
+  </p>
+</div>
+
+```{python}
+import pandas as pd
+import plotly.graph_objects as go
+
+# CSV laden
+df = pd.read_csv("/content/drive/MyDrive/Colab Notebooks/Unicef_Indicator_Meta_Merged.csv")
+
+# Top 15 Länder nach Gesamtsterblichkeit
+top15 = df.groupby("country")["obs_value"].sum().nlargest(15).index.tolist()
+
+# Nur Male und Female filtern
+filtered_df = df[df["country"].isin(top15) & df["sex"].isin(["Male", "Female"])]
+
+# Gruppieren
+grouped = filtered_df.groupby(["country", "sex"])["obs_value"].sum().reset_index()
+
+# Farben definieren
+colors = {"Male": "#8d6c64", "Female": "#d9b4a9"}
+
+# Sortierung
+custom_order = ["India", "China"] + [country for country in top15 if country not in ["India", "China"]]
+
+# Diagramm
+fig = go.Figure()
+
+for gender in ["Male", "Female"]:
+    gender_data = grouped[grouped["sex"] == gender]
+    fig.add_trace(go.Bar(
+        x=gender_data["country"],
+        y=gender_data["obs_value"],
+        name=gender,
+        marker=dict(
+            color=colors[gender],
+            line=dict(color="#5c443c", width=2)  # dunkler Rand für 3D-Effekt
+        ),
+        hovertemplate=f"<b>{gender}</b><br>%{{y:,.0f}} deaths<extra></extra>"
+    ))
+
+# Layout
+fig.update_layout(
+    barmode="group",  # wichtig: nebeneinander!
+    title="<b>Youth Mortality by Gender (1990–2022)</b>",
+    title_font=dict(size=22, family="Arial", color="#8d6c64"),
+    font=dict(family="Arial", size=14, color="#8d6c64"),
+    plot_bgcolor="#fdf9f7",
+    paper_bgcolor="#fdf9f7",
+    xaxis_title="Country",
+    yaxis_title="Total Deaths",
+    xaxis=dict(
+        categoryorder="array",
+        categoryarray=custom_order,
+        tickfont=dict(color="#8d6c64"),
+        title_font=dict(color="#8d6c64")
+    ),
+    yaxis=dict(
+        tickfont=dict(color="#8d6c64"),
+        title_font=dict(color="#8d6c64"),
+        tickformat=",~s"
+    ),
+    hoverlabel=dict(
+        bgcolor="#fdf9f7",
+        font_size=14,
+        font_family="Arial",
+        font_color="#8d6c64",
+        bordercolor="#8d6c64"
+    ),
+    legend=dict(
+        x=1.02,
+        y=1,
+        bgcolor="rgba(0,0,0,0)"
+    ),
+    margin=dict(l=40, r=20, t=60, b=80)
+)
+
+# Text im Diagramm
+fig.add_annotation(
+    text="When analysing the 15 countries with the highest absolute youth mortality between 1990 and 2022,<br>it becomes evident that <b>male deaths consistently outnumber female deaths</b>.",
+    xref="paper", yref="paper",
+    x=0.88, y=0.95,
+    showarrow=False,
+    font=dict(family="Arial", size=16, color="#8d6c64"),
+    align="center",
+    bgcolor="rgba(0,0,0,0)",
+    borderpad=0
+)
+
+fig.show()
+```
+
+```{=html}
+<div style="background-color: #fdf9f7; color: #8d6c64; font-family: Arial, sans-serif; font-size: 16px; padding: 20px; text-align: left;">
+  <p>While these absolute numbers indicate where the most deaths occurred, a mortality rate comparison (per 100,000 population) would provide further insight into where youth mortality is proportionally highest.</p>
+  <p style="color: #f28c28; font-style: italic; font-weight: bold;">Curious how this plays out worldwide?</p>
+</div>
+```
+
+```{python}
+import pandas as pd
+import plotly.graph_objects as go
+
+# Daten laden
+df = pd.read_csv("/content/drive/MyDrive/Colab Notebooks/Unicef_Indicator_Meta_Merged.csv")
+
+# Nur Male und Female berücksichtigen
+df = df[df["sex"].isin(["Male", "Female"])]
+
+# Gruppieren: Median der Todesfälle pro Jahr und Kontinent
+df_grouped = df.groupby(["year", "continent"])["obs_value"].median().reset_index()
+
+# Weltweiter Median pro Jahr
+global_median = df.groupby("year")["obs_value"].median().reset_index()
+global_median["continent"] = "Global"
+
+# Farbpalette
+continent_colors = {
+    "Africa": "#dca258",
+    "South America": "#6d3e4e",
+    "Asia": "#b089b3",
+    "North America": "#bfa6a0",
+    "Europe": "#4e4e4e",
+    "Oceania": "#df7d79",
+    "Global": "#3b6ea5"
+}
+
+# Plot erstellen
+fig = go.Figure()
+
+# Linien für jeden Kontinent
+for continent in df_grouped["continent"].unique():
+    data = df_grouped[df_grouped["continent"] == continent]
+    
+    # Textposition: Standard "middle right", South/North America "top center" mit y-Offset
+    if continent in ["South America", "North America"]:
+        text_pos = "top center"
+        y_offset = 15  # leicht anheben
+    else:
+        text_pos = "middle right"
+        y_offset = 0
+    
+    text_values = []
+    x_values = []
+    y_values = []
+    for year, value in zip(data["year"], data["obs_value"]):
+        if year == 2022:
+            text_values.append(continent)
+            x_values.append(year + 0.5)  # nach rechts verschieben
+            y_values.append(value + y_offset)  # nur für South/North America leicht höher
+        else:
+            text_values.append("")
+            x_values.append(year)
+            y_values.append(value)
+    
+    fig.add_trace(go.Scatter(
+        x=x_values,
+        y=y_values,
+        mode="lines+text",
+        name=continent,
+        line=dict(color=continent_colors[continent], width=4),
+        text=text_values,
+        textposition=text_pos,
+        textfont=dict(color=continent_colors[continent], size=12),
+        hovertemplate=(
+            "In <b>%{x}</b>, the median number of annual deaths in <b>" + continent + "</b> was <b>%{y:,}</b> per 100,000.<extra></extra>"
+        )
+    ))
+
+# Global Median
+text_values = []
+x_values = []
+y_values = []
+for year, value in zip(global_median["year"], global_median["obs_value"]):
+    if year == 2022:
+        text_values.append("Global")
+        x_values.append(year + 0.5)
+        y_values.append(value)
+    else:
+        text_values.append("")
+        x_values.append(year)
+        y_values.append(value)
+
+fig.add_trace(go.Scatter(
+    x=x_values,
+    y=y_values,
+    mode="lines+text",
+    name="Global Median",
+    line=dict(color=continent_colors["Global"], width=3, dash="dot"),
+    text=text_values,
+    textposition="middle right",
+    textfont=dict(color=continent_colors["Global"], size=12),
+    hovertemplate=(
+        "In <b>%{x}</b>, the global median number of annual deaths was <b>%{y:,}</b> per 100,000.<extra></extra>"
+    )
+))
+
+# Layout definieren
+fig.update_layout(
+    title="<b>Youth Mortality Across Continents (1990–2022)</b>",
+    font=dict(family="Arial", size=14, color="#8d6c64"),
+    xaxis_title="Year",
+    yaxis_title="Median Annual Deaths per 100,000",
+    width=1300,
+    height=500,
+    plot_bgcolor="#fdf9f7",
+    paper_bgcolor="#fdf9f7",
+    margin=dict(l=40, r=320, t=60, b=60),
+    xaxis=dict(
+        gridcolor="#e8e2df",
+        linecolor="#8d6c64",
+        titlefont=dict(color="#8d6c64"),
+        tickfont=dict(color="#8d6c64")
+    ),
+    yaxis=dict(
+        gridcolor="#e8e2df",
+        linecolor="#8d6c64",
+        titlefont=dict(color="#8d6c64"),
+        tickfont=dict(color="#8d6c64")
+    ),
+    showlegend=False
+)
+
+fig.show()
+```
+
+<div style="background-color:#fdf9f7; padding: 20px; font-family: Arial, sans-serif; font-size: 16px; color: #8d6c64; line-height: 1.2; font-style: normal;">
+
+<p><b>Firstly</b>, the figures in this analysis refer to <b>100,000 deaths in the 15 to 24 age group</b> to enable a cross-regional comparison.<p>
+<p>The <b>median value</b> was used, as large countries such as India and China distort the average due to their huge populations.</p>
+
+<p><b>Clearly</b>, <b>Africa has the highest youth mortality rate</b>, while Oceania and Europe have the lowest.</p>
+
+<p>Despite the regional differences, the <b>global youth mortality rate is declining</b> (dashed line), <b>which is an encouraging sign</b>.</p>
+
+<p><span style="color:#f28c28; font-weight:bold; font-style:italic;">But survival is just one part of the story. To understand global inequality, we must explore the link between birth rates and life expectancy.</span></p>
+
+<p style="font-style:normal;">(Furthermore, the peak in 1994 is due to the genocide in Rwanda.)</p>
+
+</div>
+
+```{python}
+import pandas as pd
+import plotly.express as px
+
+# CSV ist ja schon geladen und Spalten umbenannt
+df = df.rename(columns={
+    "Life expectancy at birth, total (years)": "life_expectancy",
+    "Birth rate, crude (per 1,000 people)": "birth_rate"
+})
+
+# Gruppieren: Durchschnitt pro Land
+avg_data = (
+    df.groupby(["country", "continent"])
+    [["life_expectancy", "birth_rate"]]
+    .mean()
+    .reset_index()
+)
+
+# Scatterplot erstellen
+fig = px.scatter(
+    avg_data,
+    x="birth_rate",
+    y="life_expectancy",
+    color="continent",
+    hover_name="country",
+    trendline="ols",
+    trendline_scope="overall",
+    color_discrete_map={
+        "Africa": "#dca258",
+        "Asia": "#b089b3",
+        "Europe": "#4e4e4e",
+        "North America": "#bfa6a0",
+        "Oceania": "#df7d79",
+        "South America": "#6d3e4e"
+    },
+    labels={
+        "birth_rate": "Average Birth Rate, Crude (per 1,000 people)",
+        "life_expectancy": "Average Life Expectancy (years)"
+    }
+)
+
+# Layout anpassen
+fig.update_layout(
+    title="<b>How Birth Rates Relate to Life Expectancy</b>",
+    plot_bgcolor="#fdf9f7",
+    paper_bgcolor="#fdf9f7",
+    font=dict(family="Arial", size=14, color="#8d6c64"),
+    title_font=dict(size=22, family="Arial", color="#8d6c64"),
+    margin=dict(l=40, r=40, t=60, b=60),
+    legend=dict(title="", bgcolor="rgba(0,0,0,0)")
+)
+
+# Trendlinie dünner und grün machen
+fig.update_traces(
+    selector=dict(mode='lines'),
+    line=dict(width=1.5, color='green')
+)
+
+# Hovertemplate anpassen: Richtige Werte und fette Labels
+fig.update_traces(
+    selector=dict(mode='markers'),
+    hovertemplate=
+    "<b>Country:</b> %{hovertext}<br>" +
+    "<b>Average Birth Rate per 1k ppl:</b> %{x:.2f}<br>" +
+    "<b>Average Life Expectancy:</b> %{y:.2f}<extra></extra>",
+    customdata=avg_data[["continent"]]
+)
+
+# Annotations hinzufügen
+annotations = []
+
+for country in ["France", "Algeria", "Mali", "Bolivia"]:
+    row = avg_data[avg_data["country"] == country]
+    if not row.empty:
+        annotations.append(dict(
+            x=row["birth_rate"].values[0],
+            y=row["life_expectancy"].values[0],
+            text=country,
+            xanchor='left',
+            yanchor='bottom',
+            showarrow=True,
+            arrowhead=1,
+            arrowsize=1,
+            arrowwidth=1,
+            arrowcolor="#8d6c64",
+            font=dict(
+                family="Arial",
+                size=12,
+                color="#8d6c64"
+            ),
+            bgcolor="#fdf9f7",
+            opacity=0.9
+        ))
+
+fig.update_layout(annotations=annotations)
+
+fig.show()
+```
+
+<div style="background-color: #fdf9f7; color: #8d6c64; font-family: Arial, Helvetica, sans-serif; font-size: 16px; padding: 20px; text-align: left; line-height: 1.2; font-style: normal;">
+  <p>The scatter plot shows the relationship between average birth rates and life expectancy across continents.</p>
+  <p><strong>Countries with lower birth rates, often wealthier nations, enjoy longer lifespans, while higher birth rates are linked to shorter lives.</strong></p>
+  <p>Europe clusters at low birth rates and high life expectancy, whereas Africa shows a wider spread, reflecting economic disparities.</p>
+  <p style="color: #f28c28; font-weight: bold; font-style: italic;">This final visualisation reminds us that where you are born should not determine how long you live — yet, for many, it still does.</p>
+</div>
